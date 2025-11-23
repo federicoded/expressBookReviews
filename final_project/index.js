@@ -8,31 +8,34 @@ const app = express();
 
 app.use(express.json());
 
-app.use("/customer",session({secret:"fingerprint_customer",resave: true, saveUninitialized: true}))
+app.use("/customer", session({ secret: "fingerprint_customer", resave: true, saveUninitialized: true }))
 
-app.use("/customer/auth/*", (req, res, next) => {
+app.use("/customer/auth/*", function auth(req, res, next) {
+
     if (req.session && req.session.user) {
-        next();
-    } else {
-        const token = req.headers["authorization"];
-        if (!token) {
-            return res.status(401).send({ message: "Unauthorized: No token provided" });
+        return next();
+    }
+
+    const token = req.headers["authorization"];
+
+    if (!token) {
+        return res.status(401).json({ message: "Unauthorized: No token provided" });
+    }
+
+
+    jwt.verify(token, "fingerprint_customer", (err, decoded) => {
+        if (err) {
+            return res.status(401).json({ message: "Unauthorized: Invalid token" });
         }
 
-        jwt.verify(token, "fingerprint_customer", (err, decoded) => {
-            if (err) {
-                return res.status(401).send({ message: "Unauthorized: Invalid token" });
-            }
-            
-            req.user = decoded;//saving data in req.user
-            next();
-        });
-    }
+        req.user = decoded;
+        next();
+    });
 });
- 
-const PORT =5000;
+
+const PORT = 5000;
 
 app.use("/customer", customer_routes);
 app.use("/", genl_routes);
 
-app.listen(PORT,()=>console.log("Server is running"));
+app.listen(PORT, () => console.log("Server is running"));
